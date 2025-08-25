@@ -19,11 +19,11 @@
   "license": "MIT",
   "type": "commonjs",
   "dependencies": {
-    "@slack/bolt": "^3.18.0",
+    "@slack/bolt": "^3.22.0",
     "chrono-node": "^2.7.6",
-    "dotenv": "^16.4.5",
+    "dotenv": "^16.6.1",
     "node-cron": "^3.0.3",
-    "sqlite3": "^5.1.6",
+    "sqlite3": "^5.1.7",
     "uuid": "^9.0.1"
   },
   "devDependencies": {
