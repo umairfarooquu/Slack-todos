@@ -1,6 +1,9 @@
 # Use Node.js LTS version
 FROM node:18-alpine
 
+# Install wget for health checks
+RUN apk add --no-cache wget
+
 # Set working directory
 WORKDIR /app
 
@@ -25,7 +28,7 @@ USER nodejs
 EXPOSE $PORT
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:$PORT/health || exit 1
 
 # Start the application
