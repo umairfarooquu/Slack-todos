@@ -2,15 +2,67 @@ const express = require("express");
 const { App, ExpressReceiver } = require("@slack/bolt");
 require("dotenv").config();
 
-// Always start with a base Express app for guaranteed health checks
-let app = express();
-app.use(express.json());
-
 const port = process.env.PORT || 3000;
 let slackApp = null;
-let receiver = null;
+let slackReceiver = null;
+let app;
 
-// Basic health check endpoints that always work
+// Initialize Slack integration if credentials are available
+if (process.env.SLACK_SIGNING_SECRET && process.env.SLACK_BOT_TOKEN) {
+  try {
+    console.log("🔄 Attempting to initialize Slack integration...");
+
+    // Create ExpressReceiver for Slack
+    slackReceiver = new ExpressReceiver({
+      signingSecret: process.env.SLACK_SIGNING_SECRET,
+      processBeforeResponse: true,
+    });
+
+    // Use the Express app from Slack receiver
+    app = slackReceiver.app;
+
+    slackApp = new App({
+      token: process.env.SLACK_BOT_TOKEN,
+      receiver: slackReceiver,
+    });
+
+    // Setup task handlers
+    const { setupTaskHandlers } = require("./src/handlers/taskHandlers");
+    setupTaskHandlers(slackApp);
+
+    console.log("✅ Slack Bot initialized successfully");
+  } catch (error) {
+    console.warn("⚠️ Failed to initialize Slack Bot:", error.message);
+    console.log("🏥 Falling back to standalone Express app");
+
+    // Fallback to standalone Express
+    app = express();
+    app.use(express.json());
+
+    app.post("/slack/events", (req, res) => {
+      res.status(503).json({
+        error: "Slack integration failed to initialize",
+        message: error.message,
+      });
+    });
+  }
+} else {
+  console.log("📋 Slack credentials not configured");
+
+  // Use standalone Express when no Slack credentials
+  app = express();
+  app.use(express.json());
+
+  app.post("/slack/events", (req, res) => {
+    res.status(400).json({
+      error: "Slack credentials not configured",
+      message:
+        "Please add SLACK_BOT_TOKEN and SLACK_SIGNING_SECRET environment variables",
+    });
+  });
+}
+
+// Add health check endpoints to any app (Slack or standalone)
 app.get("/healthz", (req, res) => {
   res.status(200).send("OK");
 });
@@ -67,54 +119,6 @@ app.get("/", (req, res) => {
     },
   });
 });
-
-// Initialize Slack integration if credentials are available
-if (process.env.SLACK_SIGNING_SECRET && process.env.SLACK_BOT_TOKEN) {
-  try {
-    console.log("🔄 Attempting to initialize Slack integration...");
-
-    receiver = new ExpressReceiver({
-      signingSecret: process.env.SLACK_SIGNING_SECRET,
-      processBeforeResponse: true,
-    });
-
-    // Mount the Slack receiver routes on our app
-    app.use('/slack/events', receiver.router);
-
-    slackApp = new App({
-      token: process.env.SLACK_BOT_TOKEN,
-      receiver,
-    });
-
-    // Setup task handlers
-    const { setupTaskHandlers } = require("./src/handlers/taskHandlers");
-    setupTaskHandlers(slackApp);
-
-    console.log("✅ Slack Bot initialized successfully");
-  } catch (error) {
-    console.warn("⚠️ Failed to initialize Slack Bot:", error.message);
-    console.log("🏥 Continuing with health-check-only mode");
-
-    // Add fallback /slack/events endpoint
-    app.post("/slack/events", (req, res) => {
-      res.status(503).json({
-        error: "Slack integration failed to initialize",
-        message: error.message,
-      });
-    });
-  }
-} else {
-  console.log("📋 Slack credentials not configured");
-
-  // Add placeholder /slack/events endpoint
-  app.post("/slack/events", (req, res) => {
-    res.status(400).json({
-      error: "Slack credentials not configured",
-      message:
-        "Please add SLACK_BOT_TOKEN and SLACK_SIGNING_SECRET environment variables",
-    });
-  });
-}
 
 async function startServer() {
   try {
