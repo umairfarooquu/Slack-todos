@@ -10,6 +10,22 @@ const app = new App({
   signingSecret: process.env.SLACK_SIGNING_SECRET,
   socketMode: false,
   port: process.env.PORT || 3000,
+  customRoutes: [
+    {
+      path: "/health",
+      method: ["GET"],
+      handler: (req, res) => {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            status: "healthy",
+            timestamp: new Date().toISOString(),
+            version: "1.0.0",
+          })
+        );
+      },
+    },
+  ],
 });
 
 async function startBot() {
@@ -30,6 +46,16 @@ async function startBot() {
     await app.start();
     console.log("⚡️ Slack Todo Bot is running!");
     console.log(`🚀 Server listening on port ${process.env.PORT || 3000}`);
+
+    // Railway deployment info
+    if (process.env.RAILWAY_ENVIRONMENT) {
+      console.log(`🚂 Deployed on Railway: ${process.env.RAILWAY_ENVIRONMENT}`);
+      console.log(
+        `🌐 Railway Domain: ${
+          process.env.RAILWAY_STATIC_URL || "Not available"
+        }`
+      );
+    }
 
     // Log setup instructions
     console.log("\n📋 Setup Instructions:");
