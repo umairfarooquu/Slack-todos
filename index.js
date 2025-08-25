@@ -76,8 +76,10 @@ if (process.env.SLACK_SIGNING_SECRET && process.env.SLACK_BOT_TOKEN) {
     receiver = new ExpressReceiver({
       signingSecret: process.env.SLACK_SIGNING_SECRET,
       processBeforeResponse: true,
-      app: app, // Use our existing Express app
     });
+
+    // Mount the Slack receiver routes on our app
+    app.use('/slack/events', receiver.router);
 
     slackApp = new App({
       token: process.env.SLACK_BOT_TOKEN,
